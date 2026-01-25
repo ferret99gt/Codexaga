@@ -28,7 +28,7 @@ If you use an IDE run button instead of Maven, make sure it passes the JavaFX mo
 
 Controls:
 - Left/Right (or A/D): move
-- Space/Z/X/Up: fire
+- Space/Z/X/Up (can be held): fire
 - Enter: start
 - R: restart
 - P: pause
