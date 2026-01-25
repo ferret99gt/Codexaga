@@ -1,0 +1,5 @@
+{
+    "java.format.settings.url": ".vscode/eclipse-formatter.xml",
+    "java.format.settings.profile": "ferret",
+    "java.configuration.updateBuildConfiguration": "automatic"
+}
