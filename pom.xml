@@ -5,7 +5,7 @@
 
   <groupId>com.codexaga</groupId>
   <artifactId>codexaga</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.0</version>
   <name>Codexaga</name>
 
   <properties>
@@ -13,6 +13,18 @@
     <maven.compiler.release>25</maven.compiler.release>
     <javafx.version>25.0.1</javafx.version>
     <javafx.platform>win</javafx.platform>
+    <javafx.maven.plugin.version>0.0.8</javafx.maven.plugin.version>
+    <jpackage.plugin.version>1.7.3</jpackage.plugin.version>
+
+    <app.name>Codexaga</app.name>
+    <app.vendor>com.codexaga</app.vendor>
+    <app.module>com.codexaga</app.module>
+    <app.mainClass>com.codexaga.CodexagaApp</app.mainClass>
+    <app.description>Codexaga desktop game</app.description>
+
+    <staging.dir>${project.build.directory}/mods</staging.dir>
+    <dist.dir>${project.build.directory}/dist</dist.dir>
+    <release.package.type>APP_IMAGE</release.package.type>
   </properties>
 
   <dependencies>
@@ -41,7 +53,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.12.1</version>
+        <version>3.13.0</version>
         <configuration>
           <release>${maven.compiler.release}</release>
           <includes>
@@ -53,11 +65,79 @@
       <plugin>
         <groupId>org.openjfx</groupId>
         <artifactId>javafx-maven-plugin</artifactId>
-        <version>0.0.8</version>
+        <version>${javafx.maven.plugin.version}</version>
         <configuration>
-          <mainClass>com.codexaga.CodexagaApp</mainClass>
+          <mainClass>${app.module}/${app.mainClass}</mainClass>
         </configuration>
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <version>3.4.2</version>
+            <configuration>
+              <outputDirectory>${staging.dir}</outputDirectory>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <version>3.7.1</version>
+            <executions>
+              <execution>
+                <id>copy-runtime-dependencies</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>copy-dependencies</goal>
+                </goals>
+                <configuration>
+                  <includeScope>runtime</includeScope>
+                  <outputDirectory>${staging.dir}</outputDirectory>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.panteleyev</groupId>
+            <artifactId>jpackage-maven-plugin</artifactId>
+            <version>${jpackage.plugin.version}</version>
+            <executions>
+              <execution>
+                <id>package-release-image</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>jpackage</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <name>${app.name}</name>
+              <vendor>${app.vendor}</vendor>
+              <description>${app.description}</description>
+              <appVersion>${project.version}</appVersion>
+              <module>${app.module}/${app.mainClass}</module>
+              <modulePaths>
+                <modulePath>${staging.dir}</modulePath>
+              </modulePaths>
+              <destination>${dist.dir}</destination>
+              <removeDestination>true</removeDestination>
+              <type>${release.package.type}</type>
+              <jLinkOptions>
+                <option>--strip-debug</option>
+                <option>--no-header-files</option>
+                <option>--no-man-pages</option>
+              </jLinkOptions>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
