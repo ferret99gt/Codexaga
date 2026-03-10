@@ -3,8 +3,9 @@ package com.codexaga;
 public final class PlayerShip
 {
     private double x;
-    private double y;
+    private final double y;
     private double invulnerableTimer;
+    private boolean dualFighter;
 
     public PlayerShip(double x, double y)
     {
@@ -40,6 +41,21 @@ public final class PlayerShip
     public boolean isInvulnerable()
     {
         return invulnerableTimer > 0;
+    }
+
+    public boolean isDualFighter()
+    {
+        return dualFighter;
+    }
+
+    public void setDualFighter(boolean dualFighter)
+    {
+        this.dualFighter = dualFighter;
+    }
+
+    public double getCollisionHalfWidth()
+    {
+        return (dualFighter ? GameConfig.DUAL_PLAYER_WIDTH : GameConfig.PLAYER_WIDTH) * 0.5;
     }
 
     public void update(double delta)

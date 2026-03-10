@@ -34,9 +34,9 @@ Controls:
 - P: pause
 
 Features:
-- Formation movement with descending waves
-- Enemy fire and escalating difficulty
-- Score, lives, and level tracking
+- Enemy dive attacks with formation pressure
+- Boss capture beam, rescue pickup, and dual-fighter firepower
+- Score, lives, and level tracking with escalating waves
 
 ## License
 

@@ -13,6 +13,7 @@ import javafx.scene.text.TextAlignment;
 public final class Renderer
 {
     private final Font hudFont = Font.font("Consolas", FontWeight.BOLD, 20);
+    private final Font statusFont = Font.font("Consolas", FontWeight.BOLD, 15);
     private final Font titleFont = Font.font("Consolas", FontWeight.EXTRA_BOLD, 40);
     private final Font infoFont = Font.font("Consolas", FontWeight.SEMI_BOLD, 18);
 
@@ -28,43 +29,67 @@ public final class Renderer
     {
         LinearGradient gradient = new LinearGradient(0, 0, 0, 1, true, CycleMethod.NO_CYCLE,
                 new Stop(0, Color.rgb(10, 16, 38)),
+                new Stop(0.55, Color.rgb(6, 10, 24)),
                 new Stop(1, Color.rgb(4, 6, 18)));
         gc.setFill(gradient);
         gc.fillRect(0, 0, GameConfig.WIDTH, GameConfig.HEIGHT);
 
         for (Star star : state.getStars())
         {
-            double alpha = 0.35 + Math.min(0.6, star.getRadius() / 2.6);
-            gc.setFill(Color.color(0.9, 0.95, 1.0, alpha));
+            double alpha = 0.3 + Math.min(0.65, star.getRadius() / 2.4);
+            gc.setFill(Color.color(0.92, 0.96, 1.0, alpha));
             gc.fillOval(star.getX(), star.getY(), star.getRadius(), star.getRadius());
         }
     }
 
     private void drawHud(GraphicsContext gc, GameState state)
     {
-        gc.setFill(Color.rgb(12, 20, 44, 0.85));
+        gc.setFill(Color.rgb(12, 20, 44, 0.88));
         gc.fillRect(0, 0, GameConfig.WIDTH, GameConfig.HUD_HEIGHT);
 
-        gc.setFill(Color.rgb(120, 210, 255));
-        gc.setFont(hudFont);
-        gc.setTextAlign(TextAlignment.LEFT);
         gc.setTextBaseline(VPos.CENTER);
-        gc.fillText("Score " + state.getScore(), 24, GameConfig.HUD_HEIGHT / 2.0);
+        gc.setFont(hudFont);
+        gc.setFill(Color.rgb(120, 210, 255));
+        gc.setTextAlign(TextAlignment.LEFT);
+        gc.fillText("Score " + state.getScore(), 22, 25);
+        gc.fillText("Ships " + state.getLives(), 22, 52);
 
         gc.setTextAlign(TextAlignment.CENTER);
-        gc.fillText("Level " + state.getLevel(), GameConfig.WIDTH / 2.0, GameConfig.HUD_HEIGHT / 2.0);
+        gc.fillText("Level " + state.getLevel(), GameConfig.WIDTH / 2.0, 25);
+
+        gc.setFont(statusFont);
+        String playerStatus = "Single";
+        PlayerShip player = state.getPlayer();
+        if (player != null && player.isDualFighter())
+        {
+            playerStatus = "Dual Fighter";
+        }
+        else if (state.hasCapturedShipInBoss())
+        {
+            playerStatus = "Captured - shoot the boss";
+        }
+        else if (state.getRescueShip() != null)
+        {
+            playerStatus = "Rescue incoming";
+        }
+        gc.fillText(playerStatus, GameConfig.WIDTH / 2.0, 52);
 
         gc.setTextAlign(TextAlignment.RIGHT);
-        gc.fillText("Lives " + state.getLives(), GameConfig.WIDTH - 24, GameConfig.HUD_HEIGHT / 2.0);
+        gc.setFont(hudFont);
+        gc.fillText("P pause", GameConfig.WIDTH - 22, 25);
+        gc.setFont(statusFont);
+        gc.fillText("R restart", GameConfig.WIDTH - 22, 52);
     }
 
     private void drawPlayfield(GraphicsContext gc, GameState state)
     {
-        gc.setStroke(Color.rgb(60, 80, 120, 0.8));
+        gc.setStroke(Color.rgb(60, 80, 120, 0.85));
         gc.setLineWidth(2);
         gc.strokeRoundRect(GameConfig.PLAYFIELD_LEFT, GameConfig.PLAYFIELD_TOP,
                 GameConfig.PLAYFIELD_RIGHT - GameConfig.PLAYFIELD_LEFT,
                 GameConfig.PLAYFIELD_BOTTOM - GameConfig.PLAYFIELD_TOP, 18, 18);
+
+        drawCaptureBeams(gc, state);
 
         for (Enemy enemy : state.getEnemies())
         {
@@ -74,19 +99,18 @@ public final class Renderer
             }
             double x = state.getEnemyX(enemy);
             double y = state.getEnemyY(enemy);
-            drawEnemy(gc, enemy.getRow(), x, y);
+            drawEnemy(gc, enemy, x, y);
+        }
+
+        RescueShip rescueShip = state.getRescueShip();
+        if (rescueShip != null)
+        {
+            drawRescueShip(gc, rescueShip);
         }
 
         for (Bullet bullet : state.getBullets())
         {
-            if (bullet.isFromPlayer())
-            {
-                gc.setFill(Color.rgb(120, 255, 240));
-            }
-            else
-            {
-                gc.setFill(Color.rgb(255, 150, 90));
-            }
+            gc.setFill(bullet.isFromPlayer() ? Color.rgb(120, 255, 240) : Color.rgb(255, 150, 90));
             gc.fillOval(bullet.getX() - GameConfig.BULLET_RADIUS, bullet.getY() - GameConfig.BULLET_RADIUS,
                     GameConfig.BULLET_RADIUS * 2, GameConfig.BULLET_RADIUS * 2);
         }
@@ -100,27 +124,56 @@ public final class Renderer
         for (Explosion explosion : state.getExplosions())
         {
             double t = explosion.getTimer();
-            double radius = 14 + (0.6 - t) * 26;
-            gc.setStroke(Color.color(1.0, 0.7, 0.3, 0.7));
+            double radius = 18 + (0.62 - Math.min(0.62, t)) * 34;
+            gc.setStroke(Color.color(1.0, 0.75, 0.32, 0.72));
             gc.setLineWidth(2.0);
             gc.strokeOval(explosion.getX() - radius * 0.5, explosion.getY() - radius * 0.5, radius, radius);
         }
     }
 
-    private void drawEnemy(GraphicsContext gc, int row, double x, double y)
+    private void drawCaptureBeams(GraphicsContext gc, GameState state)
+    {
+        for (Enemy enemy : state.getEnemies())
+        {
+            if (!enemy.isAlive() || enemy.getMode() != EnemyMode.CAPTURE_BEAM)
+            {
+                continue;
+            }
+
+            double x = state.getEnemyX(enemy);
+            double y = state.getEnemyY(enemy) + GameConfig.ENEMY_HEIGHT * 0.5;
+            double beamHeight = GameConfig.PLAYFIELD_BOTTOM - y;
+            LinearGradient beam = new LinearGradient(0, y, 0, y + beamHeight, false, CycleMethod.NO_CYCLE,
+                    new Stop(0, Color.color(0.95, 0.95, 1.0, 0.68)),
+                    new Stop(0.35, Color.color(0.4, 0.95, 1.0, 0.22)),
+                    new Stop(1, Color.color(0.2, 0.75, 1.0, 0.03)));
+            gc.setFill(beam);
+            gc.fillPolygon(
+                    new double[] { x - 14, x + 14, x + GameConfig.CAPTURE_BEAM_WIDTH * 0.5, x - GameConfig.CAPTURE_BEAM_WIDTH * 0.5 },
+                    new double[] { y, y, y + beamHeight, y + beamHeight },
+                    4);
+        }
+    }
+
+    private void drawEnemy(GraphicsContext gc, Enemy enemy, double x, double y)
     {
         Color body;
-        if (row <= 1)
+        Color accent;
+        switch (enemy.getKind())
         {
+        case BOSS -> {
+            body = Color.rgb(255, 170, 96);
+            accent = Color.rgb(255, 232, 120);
+        }
+        case ESCORT -> {
+            body = Color.rgb(126, 190, 255);
+            accent = Color.rgb(180, 232, 255);
+        }
+        case GRUNT -> {
             body = Color.rgb(120, 255, 220);
+            accent = Color.rgb(220, 255, 250);
         }
-        else if (row == 2)
-        {
-            body = Color.rgb(130, 190, 255);
-        }
-        else
-        {
-            body = Color.rgb(255, 170, 120);
+        default -> throw new IllegalStateException("Unexpected enemy kind");
         }
 
         double halfW = GameConfig.ENEMY_WIDTH * 0.5;
@@ -128,27 +181,79 @@ public final class Renderer
 
         gc.setFill(body);
         gc.fillRoundRect(x - halfW, y - halfH, GameConfig.ENEMY_WIDTH, GameConfig.ENEMY_HEIGHT, 8, 8);
-        gc.setFill(body.brighter());
+        gc.setFill(accent);
         gc.fillOval(x - 10, y - 6, 6, 6);
         gc.fillOval(x + 4, y - 6, 6, 6);
         gc.setStroke(body.darker());
         gc.setLineWidth(2);
-        gc.strokeLine(x - halfW, y, x - halfW - 8, y + 6);
-        gc.strokeLine(x + halfW, y, x + halfW + 8, y + 6);
+        gc.strokeLine(x - halfW + 2, y + 1, x - halfW - 8, y + 7);
+        gc.strokeLine(x + halfW - 2, y + 1, x + halfW + 8, y + 7);
+
+        if (enemy.getKind() == EnemyKind.BOSS)
+        {
+            gc.setFill(Color.rgb(255, 220, 90));
+            gc.fillRect(x - 8, y - halfH - 5, 16, 4);
+        }
+
+        if (enemy.isCarryingCapturedShip())
+        {
+            gc.setStroke(Color.rgb(150, 220, 255));
+            gc.setLineWidth(2);
+            gc.strokeLine(x, y + halfH, x, y + 28);
+            drawMiniFighter(gc, x, y + 36, Color.rgb(140, 220, 255));
+        }
+    }
+
+    private void drawRescueShip(GraphicsContext gc, RescueShip rescueShip)
+    {
+        gc.setStroke(Color.rgb(150, 235, 255, 0.75));
+        gc.setLineWidth(1.5);
+        gc.strokeOval(rescueShip.getX() - 16, rescueShip.getY() - 16, 32, 32);
+        drawMiniFighter(gc, rescueShip.getX(), rescueShip.getY(), Color.rgb(150, 225, 255));
+    }
+
+    private void drawMiniFighter(GraphicsContext gc, double x, double y, Color hull)
+    {
+        gc.setFill(hull);
+        gc.fillPolygon(
+                new double[] { x - 10, x, x + 10 },
+                new double[] { y + 8, y - 8, y + 8 },
+                3);
+        gc.setFill(Color.rgb(255, 225, 130));
+        gc.fillOval(x - 3, y - 2, 6, 4);
     }
 
     private void drawPlayer(GraphicsContext gc, PlayerShip player)
     {
-        double x = player.getX();
+        if (player.isDualFighter())
+        {
+            drawDualPlayer(gc, player);
+            return;
+        }
+
+        drawSinglePlayer(gc, player, player.getX(), Color.rgb(120, 210, 255));
+    }
+
+    private void drawDualPlayer(GraphicsContext gc, PlayerShip player)
+    {
+        Color left = Color.rgb(120, 210, 255, player.isInvulnerable() ? 0.72 : 1.0);
+        Color right = Color.rgb(120, 255, 220, player.isInvulnerable() ? 0.72 : 1.0);
+        drawSinglePlayer(gc, player, player.getX() - 18, left);
+        drawSinglePlayer(gc, player, player.getX() + 18, right);
+        gc.setStroke(Color.rgb(150, 235, 255, 0.65));
+        gc.setLineWidth(2);
+        gc.strokeLine(player.getX() - 8, player.getY() + 8, player.getX() + 8, player.getY() + 8);
+    }
+
+    private void drawSinglePlayer(GraphicsContext gc, PlayerShip player, double x, Color baseHull)
+    {
         double y = player.getY();
         double halfW = GameConfig.PLAYER_WIDTH * 0.5;
         double halfH = GameConfig.PLAYER_HEIGHT * 0.5;
 
-        Color hull = Color.rgb(120, 210, 255);
-        if (player.isInvulnerable())
-        {
-            hull = Color.rgb(200, 230, 255, 0.7);
-        }
+        Color hull = player.isInvulnerable()
+                ? Color.color(baseHull.getRed(), baseHull.getGreen(), baseHull.getBlue(), 0.72)
+                : baseHull;
 
         gc.setFill(hull);
         gc.fillPolygon(
@@ -170,7 +275,7 @@ public final class Renderer
             return;
         }
 
-        gc.setFill(Color.rgb(8, 12, 24, 0.7));
+        gc.setFill(Color.rgb(8, 12, 24, 0.72));
         gc.fillRect(0, GameConfig.HUD_HEIGHT, GameConfig.WIDTH, GameConfig.HEIGHT - GameConfig.HUD_HEIGHT);
 
         gc.setTextAlign(TextAlignment.CENTER);
@@ -180,10 +285,12 @@ public final class Renderer
         {
             gc.setFill(Color.rgb(120, 210, 255));
             gc.setFont(titleFont);
-            gc.fillText("CODEXAGA", GameConfig.WIDTH / 2.0, GameConfig.HEIGHT / 2.0 - 20);
+            gc.fillText("CODEXAGA", GameConfig.WIDTH / 2.0, GameConfig.HEIGHT / 2.0 - 34);
 
             gc.setFont(infoFont);
-            gc.fillText("Press Enter or Fire to launch", GameConfig.WIDTH / 2.0, GameConfig.HEIGHT / 2.0 + 30);
+            gc.fillText("Enter or Fire to launch", GameConfig.WIDTH / 2.0, GameConfig.HEIGHT / 2.0 + 12);
+            gc.fillText("Bosses can capture your fighter - rescue it for dual guns", GameConfig.WIDTH / 2.0,
+                    GameConfig.HEIGHT / 2.0 + 44);
         }
         else if (state.getStatus() == GameState.Status.PAUSED)
         {

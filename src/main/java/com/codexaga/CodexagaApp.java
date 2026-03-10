@@ -21,6 +21,7 @@ public final class CodexagaApp extends Application
     public void start(Stage stage)
     {
         Canvas canvas = new Canvas(GameConfig.WIDTH, GameConfig.HEIGHT);
+        canvas.setFocusTraversable(true);
         GraphicsContext gc = canvas.getGraphicsContext2D();
 
         gameState = new GameState(new Random());
@@ -33,6 +34,7 @@ public final class CodexagaApp extends Application
         stage.setScene(scene);
         stage.setResizable(false);
         stage.show();
+        canvas.requestFocus();
 
         AnimationTimer timer = new AnimationTimer()
         {
